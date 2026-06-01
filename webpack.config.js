@@ -3,11 +3,12 @@ const createExpoWebpackConfigAsync = require('@expo/webpack-config');
 module.exports = async function (env, argv) {
   const config = await createExpoWebpackConfigAsync(env, argv);
   
-  // Maps both missing Node environments to browser equivalents
+  // Force Webpack to completely skip bundling these mobile native modules for the web
   config.resolve.fallback = {
     ...config.resolve.fallback,
-    crypto: require.resolve('crypto-browserify'),
-    stream: require.resolve('stream-browserify')
+    crypto: false,
+    stream: false,
+    buffer: false
   };
   
   return config;
