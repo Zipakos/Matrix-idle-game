@@ -3,7 +3,7 @@ name: Deploy Expo Web App to GitHub Pages
 on:
   push:
     branches:
-      - main 
+      - main
 
 permissions:
   contents: write
@@ -11,26 +11,23 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      # Explicitly forces the GitHub Runner to execute JS actions on Node 24
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6 # Upgraded from v4 to support Node 24 natively
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js Environment
-        uses: actions/setup-node@v6 # Upgraded from v4 to support Node 24 natively
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 24 # Switched project compiler to target Node 24
+          node-version: 18
 
-      - name: Install Project Dependencies
+      - name: Install Dependencies
         run: npm install
 
-      - name: Compile React Native Code for Web
-        run: npx expo export --platform web
+      - name: Build Web Application
+        run: npm run build:web
 
-      - name: Deploy Compiled Files to GitHub Pages
+      - name: Push to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist 
+          folder: web-build
           branch: gh-pages
