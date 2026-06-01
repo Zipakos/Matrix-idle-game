@@ -1,0 +1,7 @@
+Plaintext
+
+
+node_modules/
+.expo/
+.DS_Store
+npm-debug.log*
