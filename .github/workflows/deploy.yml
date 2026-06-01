@@ -3,7 +3,7 @@ name: Deploy Expo Web App to GitHub Pages
 on:
   push:
     branches:
-      - main # Triggers the robot every time you save changes to main
+      - main 
 
 permissions:
   contents: write
@@ -11,14 +11,17 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # Explicitly forces the GitHub Runner to execute JS actions on Node 24
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6 # Upgraded from v4 to support Node 24 natively
 
       - name: Setup Node.js Environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6 # Upgraded from v4 to support Node 24 natively
         with:
-          node-version: 18
+          node-version: 24 # Switched project compiler to target Node 24
 
       - name: Install Project Dependencies
         run: npm install
@@ -29,5 +32,5 @@ jobs:
       - name: Deploy Compiled Files to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist # Uploads the compiled web folder
-          branch: gh-pages # Drops it onto the website delivery branch
+          folder: dist 
+          branch: gh-pages
