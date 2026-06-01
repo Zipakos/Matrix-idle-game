@@ -11,14 +11,17 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # Explicitly forces the runner to handle all compilation on Node 24
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6 # Native Node 24 version
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6 # Native Node 24 version
         with:
-          node-version: 18
+          node-version: 24
 
       - name: Install Dependencies
         run: npm install
