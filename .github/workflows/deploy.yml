@@ -1,0 +1,33 @@
+name: Deploy Expo Web App to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Triggers the robot every time you save changes to main
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Project Dependencies
+        run: npm install
+
+      - name: Compile React Native Code for Web
+        run: npx expo export --platform web
+
+      - name: Deploy Compiled Files to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist # Uploads the compiled web folder
+          branch: gh-pages # Drops it onto the website delivery branch
