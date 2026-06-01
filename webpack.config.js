@@ -3,10 +3,10 @@ const createExpoWebpackConfigAsync = require('@expo/webpack-config');
 module.exports = async function (env, argv) {
   const config = await createExpoWebpackConfigAsync(env, argv);
   
-  // Inject the crypto polyfill fallback for web compatibility
+  // Directly provide the polyfill fallback exactly as requested by Webpack 5
   config.resolve.fallback = {
     ...config.resolve.fallback,
-    crypto: require.resolve('expo-crypto'),
+    crypto: require.resolve('crypto-browserify')
   };
   
   return config;
