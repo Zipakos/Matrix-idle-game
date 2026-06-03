@@ -1,5 +1,5 @@
 // PrestigeTab.js
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { PRESTIGE_TREE, VOID_CORE_TREE } from './gameData';
 
@@ -15,7 +15,18 @@ export default function PrestigeTab({
   executeSingularityCollapse
 }) {
   const [subTab, setSubTab] = useState('tree'); 
-  const [selectedNodeId, setSelectedNodeId] = useState(null); // Tracks the currently focused node
+  const [selectedNodeId, setSelectedNodeId] = useState(null); 
+
+  // SCROLL REFERENCES FOR WEBBROWSER DRAG ENGINES
+  const horizontalScrollRef = useRef(null);
+  const verticalScrollRef = useRef(null);
+  
+  // DRAG STATE TRACKERS
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const scrollLeft = useRef(0);
+  const scrollTop = useRef(0);
 
   const isNodeUnlocked = (node) => {
     if (!node.parent) return true; 
@@ -24,27 +35,60 @@ export default function PrestigeTab({
 
   const hasUnlockedVoidCore = (prestigeUps['pr_fabricator'] || 0) > 0;
 
-  // SYSTEM INTERACTION OVERRIDE GATEWAY
   const handleNodeTap = (id, item) => {
     if (selectedNodeId === id) {
-      // Second consecutive tap triggers purchase verification transaction
       buyPrestigeUpgrade(id);
     } else {
-      // Initial tap locks interface focus to inspect data payloads
       setSelectedNodeId(id);
     }
+  };
+
+  // --- DESKTOP MOUSE DRAG HANDLERS ---
+  const handleMouseDown = (e) => {
+    // Only drag if clicking the canvas background, not native buttons
+    isDragging.current = true;
+    
+    // Support both standard web events and React Native responder events
+    const nativeEvent = e.nativeEvent || e;
+    startX.current = nativeEvent.pageX;
+    startY.current = nativeEvent.pageY;
+
+    // Capture starting scroll positions if refs are alive
+    if (horizontalScrollRef.current && horizontalScrollRef.current.getScrollableNode) {
+      scrollLeft.current = horizontalScrollRef.current.getScrollableNode().scrollLeft || 0;
+    }
+    if (verticalScrollRef.current && verticalScrollRef.current.getScrollableNode) {
+      scrollTop.current = verticalScrollRef.current.getScrollableNode().scrollTop || 0;
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging.current) return;
+    
+    const nativeEvent = e.nativeEvent || e;
+    const xDiff = nativeEvent.pageX - startX.current;
+    const yDiff = nativeEvent.pageY - startY.current;
+
+    // Move the underlying HTML scroll components directly for maximum web fluidness
+    if (horizontalScrollRef.current && horizontalScrollRef.current.getScrollableNode) {
+      horizontalScrollRef.current.getScrollableNode().scrollLeft = scrollLeft.current - xDiff;
+    }
+    if (verticalScrollRef.current && verticalScrollRef.current.getScrollableNode) {
+      verticalScrollRef.current.getScrollableNode().scrollTop = scrollTop.current - yDiff;
+    }
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDragging.current = false;
   };
 
   // DYNAMIC CONNECTING WIRE ENGINE
   const renderConnectingWire = (childId, childNode) => {
     if (!childNode.parent) return null;
-    
-    // Line is completely hidden unless the child neuron itself is unlocked and visible
     if (!isNodeUnlocked(childNode)) return null;
 
     const parentNode = PRESTIGE_TREE[childNode.parent];
 
-    // Center offset compensation values (Assuming node size diameter of 90x90px)
     const pX = parentNode.gridX + 45;
     const pY = parentNode.gridY + 45;
     const cX = childNode.gridX + 45;
@@ -56,7 +100,7 @@ export default function PrestigeTab({
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
     const isChildBought = (prestigeUps[childId] || 0) > 0;
-    const lineColor = isChildBought ? '#00ffff' : '#1a4444'; // Brighter glow if fully upgraded
+    const lineColor = isChildBought ? '#00ffff' : '#1a4444';
 
     return (
       <View
@@ -113,18 +157,28 @@ export default function PrestigeTab({
         <View style={styles.treeSectionWrapper}>
           <Text style={styles.sectionHeader}>Neural Singularity Synapse Web</Text>
           
-          {/* OMNIDIRECTIONAL SCROLLING CANVAS LAYER */}
-          <View style={styles.canvasFrameContainer}>
+          {/* MOUSE-INTERACTIVE FRAME CONTEXT */}
+          <View 
+            style={styles.canvasFrameContainer}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUpOrLeave}
+            onMouseLeave={handleMouseUpOrLeave}
+          >
             <ScrollView 
+              ref={horizontalScrollRef}
               horizontal 
               showsHorizontalScrollIndicator={true}
               contentContainerStyle={styles.horizontalScrollContent}
+              scrollEnabled={true}
             >
               <ScrollView 
+                ref={verticalScrollRef}
                 nestedScrollEnabled 
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.verticalScrollContent}
                 style={styles.mapCanvasScrollVertical}
+                scrollEnabled={true}
               >
                 <View style={styles.canvasPlane}>
                   
@@ -153,6 +207,8 @@ export default function PrestigeTab({
                           isFocused && styles.neuronFocusedBorder
                         ]}
                         onPress={() => handleNodeTap(id, item)}
+                        // Prevents dragging calculations from firing when clicking directly on a button node
+                        onMouseDown={(e) => e.stopPropagation()} 
                       >
                         <Text style={styles.neuronName} numberOfLines={2}>{item.name}</Text>
                         <Text style={styles.neuronMeta}>
@@ -246,7 +302,6 @@ const styles = StyleSheet.create({
   collapseBtnDisabled: { borderColor: '#112222', backgroundColor: 'transparent', opacity: 0.2 },
   sectionHeader: { color: '#00ffff', fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#002222', paddingBottom: 2 },
   
-  // FIXED OMNIDIRECTIONAL FRAMES WITH WEB FIXES
   canvasFrameContainer: {
     backgroundColor: '#030606',
     borderWidth: 1,
@@ -254,10 +309,11 @@ const styles = StyleSheet.create({
     height: 420, 
     width: '100%',
     overflow: 'hidden',
+    cursor: 'grab', // Changes mouse cursor to a grab-hand on browsers
   },
   horizontalScrollContent: {
     width: 600,
-    alignSelf: 'flex-start', // CRITICAL WEB FIX: Stops the web rendering engine from creating empty right space extensions
+    alignSelf: 'flex-start',
   },
   verticalScrollContent: {
     height: 480,
@@ -273,7 +329,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#020404',
   },
 
-  // SKILL WEB NODE DEFINITIONS
   neuronNode: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#011111', borderWidth: 1, borderColor: '#004444', padding: 6, justifyContent: 'center', alignItems: 'center', zIndex: 5 },
   neuronLinearBought: { backgroundColor: '#002222', borderColor: '#00ffff' },
   neuronActiveRepeatable: { borderColor: '#00cc88' },
@@ -281,10 +336,8 @@ const styles = StyleSheet.create({
   neuronName: { color: '#eee', fontSize: 9, fontFamily: 'monospace', fontWeight: 'bold', textAlign: 'center', lineHeight: 10 },
   neuronMeta: { color: '#009988', fontSize: 8, fontFamily: 'monospace', marginTop: 3, fontWeight: 'bold' },
 
-  // CALCULATED VECTOR STRINGS
   wireElement: { position: 'absolute', height: 1.5, transformOrigin: 'top left', zIndex: 1 },
 
-  // DYNAMIC CONSOLE READOUT SUB PANEL LAYOUTS
   telemetryFooterBox: { backgroundColor: '#050707', borderWidth: 1, borderColor: '#112222', padding: 12, marginTop: 10, minHeight: 92, justifyContent: 'center' },
   telemetryStandbyPrompt: { color: '#334444', fontFamily: 'monospace', fontSize: 10, textAlign: 'center', lineHeight: 14 },
   telemetryNodeTitle: { color: '#fff', fontFamily: 'monospace', fontSize: 12, fontWeight: 'bold', borderBottomWidth: 1, borderBottomColor: '#002222', paddingBottom: 2, marginBottom: 4 },
