@@ -17,7 +17,7 @@ export default function PrestigeTab({
   const [subTab, setSubTab] = useState('tree'); 
   const [selectedNodeId, setSelectedNodeId] = useState(null); 
 
-  // SCROLL REFERENCES FOR WEBBROWSER DRAG ENGINES
+  // SCROLL REFERENCES FOR DRAG ENGINES
   const horizontalScrollRef = useRef(null);
   const verticalScrollRef = useRef(null);
   
@@ -45,20 +45,24 @@ export default function PrestigeTab({
 
   // --- DESKTOP MOUSE DRAG HANDLERS ---
   const handleMouseDown = (e) => {
-    // Only drag if clicking the canvas background, not native buttons
     isDragging.current = true;
     
-    // Support both standard web events and React Native responder events
     const nativeEvent = e.nativeEvent || e;
     startX.current = nativeEvent.pageX;
     startY.current = nativeEvent.pageY;
 
-    // Capture starting scroll positions if refs are alive
-    if (horizontalScrollRef.current && horizontalScrollRef.current.getScrollableNode) {
-      scrollLeft.current = horizontalScrollRef.current.getScrollableNode().scrollLeft || 0;
+    // Direct DOM element node discovery
+    if (horizontalScrollRef.current) {
+      const hNode = horizontalScrollRef.current.getScrollableNode 
+        ? horizontalScrollRef.current.getScrollableNode() 
+        : horizontalScrollRef.current;
+      scrollLeft.current = hNode.scrollLeft || 0;
     }
-    if (verticalScrollRef.current && verticalScrollRef.current.getScrollableNode) {
-      scrollTop.current = verticalScrollRef.current.getScrollableNode().scrollTop || 0;
+    if (verticalScrollRef.current) {
+      const vNode = verticalScrollRef.current.getScrollableNode 
+        ? verticalScrollRef.current.getScrollableNode() 
+        : verticalScrollRef.current;
+      scrollTop.current = vNode.scrollTop || 0;
     }
   };
 
@@ -69,12 +73,18 @@ export default function PrestigeTab({
     const xDiff = nativeEvent.pageX - startX.current;
     const yDiff = nativeEvent.pageY - startY.current;
 
-    // Move the underlying HTML scroll components directly for maximum web fluidness
-    if (horizontalScrollRef.current && horizontalScrollRef.current.getScrollableNode) {
-      horizontalScrollRef.current.getScrollableNode().scrollLeft = scrollLeft.current - xDiff;
+    // Forces web rendering engines to move both absolute scroll axes synchronously
+    if (horizontalScrollRef.current) {
+      const hNode = horizontalScrollRef.current.getScrollableNode 
+        ? horizontalScrollRef.current.getScrollableNode() 
+        : horizontalScrollRef.current;
+      if (hNode) hNode.scrollLeft = scrollLeft.current - xDiff;
     }
-    if (verticalScrollRef.current && verticalScrollRef.current.getScrollableNode) {
-      verticalScrollRef.current.getScrollableNode().scrollTop = scrollTop.current - yDiff;
+    if (verticalScrollRef.current) {
+      const vNode = verticalScrollRef.current.getScrollableNode 
+        ? verticalScrollRef.current.getScrollableNode() 
+        : verticalScrollRef.current;
+      if (vNode) vNode.scrollTop = scrollTop.current - yDiff;
     }
   };
 
@@ -82,17 +92,18 @@ export default function PrestigeTab({
     isDragging.current = false;
   };
 
-  // DYNAMIC CONNECTING WIRE ENGINE
+  // DYNAMIC CONNECTING WIRE ENGINE (Updated for 60px node midpoints)
   const renderConnectingWire = (childId, childNode) => {
     if (!childNode.parent) return null;
     if (!isNodeUnlocked(childNode)) return null;
 
     const parentNode = PRESTIGE_TREE[childNode.parent];
 
-    const pX = parentNode.gridX + 45;
-    const pY = parentNode.gridY + 45;
-    const cX = childNode.gridX + 45;
-    const cY = childNode.gridY + 45;
+    // Radius compensation values changed from 45 to 30 to account for smaller 60px nodes
+    const pX = parentNode.gridX + 30;
+    const pY = parentNode.gridY + 30;
+    const cX = childNode.gridX + 30;
+    const cY = childNode.gridY + 30;
 
     const dx = cX - pX;
     const dy = cY - pY;
@@ -170,7 +181,7 @@ export default function PrestigeTab({
               horizontal 
               showsHorizontalScrollIndicator={true}
               contentContainerStyle={styles.horizontalScrollContent}
-              scrollEnabled={true}
+              scrollEnabled={false} // Disable native mousewheel fight triggers
             >
               <ScrollView 
                 ref={verticalScrollRef}
@@ -178,7 +189,7 @@ export default function PrestigeTab({
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.verticalScrollContent}
                 style={styles.mapCanvasScrollVertical}
-                scrollEnabled={true}
+                scrollEnabled={false}
               >
                 <View style={styles.canvasPlane}>
                   
@@ -207,12 +218,11 @@ export default function PrestigeTab({
                           isFocused && styles.neuronFocusedBorder
                         ]}
                         onPress={() => handleNodeTap(id, item)}
-                        // Prevents dragging calculations from firing when clicking directly on a button node
                         onMouseDown={(e) => e.stopPropagation()} 
                       >
                         <Text style={styles.neuronName} numberOfLines={2}>{item.name}</Text>
                         <Text style={styles.neuronMeta}>
-                          {item.type === 'linear' ? (isBoughtLinear ? 'ONLINE' : 'STBY') : `Lvl ${ownedLevel}`}
+                          {item.type === 'linear' ? (isBoughtLinear ? 'ON' : 'STBY') : `L${ownedLevel}`}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -309,7 +319,8 @@ const styles = StyleSheet.create({
     height: 420, 
     width: '100%',
     overflow: 'hidden',
-    cursor: 'grab', // Changes mouse cursor to a grab-hand on browsers
+    cursor: 'grab', 
+    userSelect: 'none', // Stops text selection highlights while dragging the map
   },
   horizontalScrollContent: {
     width: 600,
@@ -329,12 +340,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#020404',
   },
 
-  neuronNode: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#011111', borderWidth: 1, borderColor: '#004444', padding: 6, justifyContent: 'center', alignItems: 'center', zIndex: 5 },
+  // SHRUNK NEURON CONFIGS (90px -> 60px diameter)
+  neuronNode: { 
+    position: 'absolute', 
+    width: 60, 
+    height: 60, 
+    borderRadius: 30, 
+    backgroundColor: '#011111', 
+    borderWidth: 1, 
+    borderColor: '#004444', 
+    padding: 4, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    zIndex: 5 
+  },
   neuronLinearBought: { backgroundColor: '#002222', borderColor: '#00ffff' },
   neuronActiveRepeatable: { borderColor: '#00cc88' },
-  neuronFocusedBorder: { borderColor: '#ffffff', borderWidth: 2, backgroundColor: '#002626' },
-  neuronName: { color: '#eee', fontSize: 9, fontFamily: 'monospace', fontWeight: 'bold', textAlign: 'center', lineHeight: 10 },
-  neuronMeta: { color: '#009988', fontSize: 8, fontFamily: 'monospace', marginTop: 3, fontWeight: 'bold' },
+  neuronFocusedBorder: { borderColor: '#ffffff', borderWidth: 1.5, backgroundColor: '#002626' },
+  neuronName: { color: '#eee', fontSize: 7.5, fontFamily: 'monospace', fontWeight: 'bold', textAlign: 'center', lineHeight: 8.5 },
+  neuronMeta: { color: '#009988', fontSize: 7, fontFamily: 'monospace', marginTop: 1, fontWeight: 'bold' },
 
   wireElement: { position: 'absolute', height: 1.5, transformOrigin: 'top left', zIndex: 1 },
 
@@ -346,15 +370,4 @@ const styles = StyleSheet.create({
   telemetryCostText: { fontFamily: 'monospace', fontSize: 10, fontWeight: 'bold' },
   telemetryDirectBuyBtn: { backgroundColor: '#002222', borderWidth: 1, borderColor: '#00ffff', paddingHorizontal: 8, paddingVertical: 4 },
   telemetryDirectBuyBtnDisabled: { borderColor: '#221111', backgroundColor: 'transparent', opacity: 0.2 },
-  telemetryDirectBuyText: { color: '#fff', fontFamily: 'monospace', fontSize: 9, fontWeight: 'bold' },
-
-  subTabBar: { flexDirection: 'row', backgroundColor: '#050505', marginBottom: 12, borderWidth: 1, borderColor: '#111' },
-  subTabButton: { flex: 1, paddingVertical: 6, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  subTabActive: { backgroundColor: '#0c0c0c', borderBottomColor: '#00ffff' },
-  subTabText: { color: '#444', fontFamily: 'monospace', fontSize: 10, fontWeight: 'bold' },
-  subTabTextActive: { color: '#fff' },
-
-  voidRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1a001a' },
-  rowDetails: { color: '#888', fontSize: 11, fontFamily: 'monospace', marginTop: 1 },
-  voidBuyBtn: { borderWidth: 1, borderColor: '#ff00ff', paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#1a001a' }
-});
+  telemetryDirectBuyText:
