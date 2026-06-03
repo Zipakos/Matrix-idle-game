@@ -1,0 +1,307 @@
+// PrestigeTab.js
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
+import { PRESTIGE_TREE, VOID_CORE_TREE } from './gameData';
+
+export default function PrestigeTab({
+  points,
+  shards,
+  prestigeUps,
+  voidPurchased,
+  getPendingShards,
+  getPrestigeUpgradeCost,
+  buyPrestigeUpgrade,
+  buyVoidUpgrade,
+  executeSingularityCollapse
+}) {
+  const [subTab, setSubTab] = useState('tree'); 
+  const [selectedNodeId, setSelectedNodeId] = useState(null); // Tracks the currently focused node
+
+  const isNodeUnlocked = (node) => {
+    if (!node.parent) return true; 
+    return (prestigeUps[node.parent] || 0) > 0; 
+  };
+
+  const hasUnlockedVoidCore = (prestigeUps['pr_fabricator'] || 0) > 0;
+
+  // SYSTEM INTERACTION OVERRIDE GATEWAY
+  const handleNodeTap = (id, item) => {
+    if (selectedNodeId === id) {
+      // Second consecutive tap triggers purchase verification transaction
+      buyPrestigeUpgrade(id);
+    } else {
+      // Initial tap locks interface focus to inspect data payloads
+      setSelectedNodeId(id);
+    }
+  };
+
+  // DYNAMIC CONNECTING WIRE ENGINE
+  const renderConnectingWire = (childId, childNode) => {
+    if (!childNode.parent) return null;
+    
+    // Line is completely hidden unless the child neuron itself is unlocked and visible
+    if (!isNodeUnlocked(childNode)) return null;
+
+    const parentNode = PRESTIGE_TREE[childNode.parent];
+
+    // Center offset compensation values (Assuming node size diameter of 90x90px)
+    const pX = parentNode.gridX + 45;
+    const pY = parentNode.gridY + 45;
+    const cX = childNode.gridX + 45;
+    const cY = childNode.gridY + 45;
+
+    const dx = cX - pX;
+    const dy = cY - pY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    const isChildBought = (prestigeUps[childId] || 0) > 0;
+    const lineColor = isChildBought ? '#00ffff' : '#1a4444'; // Brighter glow if fully upgraded
+
+    return (
+      <View
+        key={`wire-${childId}`}
+        style={[
+          styles.wireElement,
+          {
+            width: distance,
+            left: pX,
+            top: pY,
+            transform: [
+              { rotate: `${angle}deg` },
+              { translateX: 0 },
+              { translateY: -0.5 }
+            ],
+            backgroundColor: lineColor,
+          }
+        ]}
+      />
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* INITIAL RESET MATRIX INTERACTION HUB */}
+      <View style={styles.prestigeResetPanel}>
+        <Text style={styles.panelTitle}>CORE SINGULARITY RESET MATRIX</Text>
+        <Text style={styles.pendingShardValue}>
+          PENDING SHARDS: +{getPendingShards(points).toLocaleString()}
+        </Text>
+        <TouchableOpacity 
+          style={[styles.collapseBtn, getPendingShards(points) < 1 && styles.collapseBtnDisabled]}
+          onPress={executeSingularityCollapse}
+          disabled={getPendingShards(points) < 1}
+        >
+          <Text style={styles.collapseBtnText}>EXECUTE DIMENSIONAL REBOOT</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* TOP SUB-TAB BAR VIEW MANAGER */}
+      {hasUnlockedVoidCore && (
+        <View style={styles.subTabBar}>
+          <TouchableOpacity style={[styles.subTabButton, subTab === 'tree' && styles.subTabActive]} onPress={() => setSubTab('tree')}>
+            <Text style={[styles.subTabText, subTab === 'tree' && styles.subTabTextActive]}>SYNAPSE_GRID_MAP</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.subTabButton, subTab === 'void_core' && styles.subTabActive, { borderColor: '#ff00ff' }]} onPress={() => setSubTab('void_core')}>
+            <Text style={[styles.subTabText, subTab === 'void_core' && { color: '#ff00ff' }]}>VOID_CORE_HORIZON</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* CORE DISPLAY ROUTERS */}
+      {subTab === 'tree' ? (
+        <View style={styles.treeSectionWrapper}>
+          <Text style={styles.sectionHeader}>Neural Singularity Synapse Web</Text>
+          
+          {/* OMNIDIRECTIONAL SCROLLING CANVAS LAYER */}
+          <View style={styles.canvasFrameContainer}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={true}
+              contentContainerStyle={styles.horizontalScrollContent}
+            >
+              <ScrollView 
+                nestedScrollEnabled 
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.verticalScrollContent}
+                style={styles.mapCanvasScrollVertical}
+              >
+                <View style={styles.canvasPlane}>
+                  
+                  {/* WIRE MAPPING MATRIX LAYER */}
+                  {Object.keys(PRESTIGE_TREE).map((id) => renderConnectingWire(id, PRESTIGE_TREE[id]))}
+
+                  {/* LOGICAL DISPLAY NODES LAYER */}
+                  {Object.keys(PRESTIGE_TREE).map((id) => {
+                    const item = PRESTIGE_TREE[id];
+                    if (!isNodeUnlocked(item)) return null;
+
+                    const cost = getPrestigeUpgradeCost(id);
+                    const ownedLevel = prestigeUps[id] || 0;
+                    const isBoughtLinear = item.type === 'linear' && ownedLevel > 0;
+                    const isFocused = selectedNodeId === id;
+
+                    return (
+                      <TouchableOpacity
+                        key={id}
+                        activeOpacity={0.9}
+                        style={[
+                          styles.neuronNode,
+                          { left: item.gridX, top: item.gridY },
+                          isBoughtLinear && styles.neuronLinearBought,
+                          ownedLevel > 0 && item.type === 'repeatable' && styles.neuronActiveRepeatable,
+                          isFocused && styles.neuronFocusedBorder
+                        ]}
+                        onPress={() => handleNodeTap(id, item)}
+                      >
+                        <Text style={styles.neuronName} numberOfLines={2}>{item.name}</Text>
+                        <Text style={styles.neuronMeta}>
+                          {item.type === 'linear' ? (isBoughtLinear ? 'ONLINE' : 'STBY') : `Lvl ${ownedLevel}`}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                </View>
+              </ScrollView>
+            </ScrollView>
+          </View>
+
+          {/* DYNAMIC FOCUS TELEMETRY FOOTER MONITOR INTERFACE */}
+          <View style={styles.telemetryFooterBox}>
+            {selectedNodeId && PRESTIGE_TREE[selectedNodeId] ? (() => {
+              const selectedItem = PRESTIGE_TREE[selectedNodeId];
+              const cost = getPrestigeUpgradeCost(selectedNodeId);
+              const lvl = prestigeUps[selectedNodeId] || 0;
+              const isMaxedLinear = selectedItem.type === 'linear' && lvl > 0;
+              const processingAffordable = shards >= cost;
+
+              return (
+                <View>
+                  <Text style={styles.telemetryNodeTitle}>{selectedItem.name.toUpperCase()}</Text>
+                  <Text style={styles.telemetryNodeDesc}>{selectedItem.desc(lvl)}</Text>
+                  <View style={styles.telemetryActionRow}>
+                    <Text style={[styles.telemetryCostText, processingAffordable ? { color: '#00ffff' } : { color: '#662222' }]}>
+                      {isMaxedLinear ? 'STATUS: MAXIMUM ALLOCATION MET' : `REQUISITION COST: ${cost.toLocaleString()} SHARDS`}
+                    </Text>
+                    {!isMaxedLinear && (
+                      <TouchableOpacity 
+                        style={[styles.telemetryDirectBuyBtn, !processingAffordable && styles.telemetryDirectBuyBtnDisabled]}
+                        onPress={() => buyPrestigeUpgrade(selectedNodeId)}
+                        disabled={!processingAffordable}
+                      >
+                        <Text style={styles.telemetryDirectBuyText}>
+                          {shards >= cost ? 'EXECUTE_UPGRADE' : 'INSUFFICIENT_SHARDS'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              );
+            })() : (
+              <Text style={styles.telemetryStandbyPrompt}>[INTELLIGENCE CONSOLE MONITOR STANDBY: INITIALIZE SYNAPSE NODE HIGHLIGHT TO QUERY PIPELINE TELEMETRY DATA]</Text>
+            )}
+          </View>
+        </View>
+      ) : (
+        /* VOID CORE MATRIX SECTIONS */
+        <View>
+          <Text style={[styles.sectionHeader, { color: '#ff00ff', borderBottomColor: '#220022' }]}>Void Core Infinite Matrix Upgrades</Text>
+          {Object.keys(VOID_CORE_TREE).map((id) => {
+            const item = VOID_CORE_TREE[id];
+            const ownedLevel = voidPurchased[id] || 0;
+            let cost = item.cost;
+            if (item.type === 'repeatable') cost = Math.floor(item.baseCost * Math.pow(item.scale, ownedLevel));
+            if (item.type === 'linear' && ownedLevel > 0) return null;
+
+            return (
+              <View key={id} style={styles.voidRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#ff00ff', fontSize: 13, fontFamily: 'monospace', fontWeight: 'bold' }}>
+                    {item.name} {item.type === 'repeatable' && `[Lvl ${ownedLevel}]`}
+                  </Text>
+                  <Text style={styles.rowDetails}>{item.desc(ownedLevel)}</Text>
+                  <Text style={{ color: '#ff00ff', fontFamily: 'monospace', fontSize: 11, marginTop: 2 }}>Cost: {cost} Shards</Text>
+                </View>
+                <TouchableOpacity style={styles.voidBuyBtn} onPress={() => buyVoidUpgrade(id)}>
+                  <Text style={{ color: '#ff00ff', fontFamily: 'monospace', fontSize: 10, fontWeight: 'bold' }}>WEAVE</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { width: '100%' },
+  treeSectionWrapper: { width: '100%' },
+  prestigeResetPanel: { backgroundColor: '#050a0a', borderWidth: 1, borderColor: '#003333', padding: 12, marginBottom: 12 },
+  panelTitle: { color: '#00ffff', fontSize: 12, fontFamily: 'monospace', fontWeight: 'bold', textAlign: 'center' },
+  pendingShardValue: { color: '#fff', fontSize: 12, fontFamily: 'monospace', fontWeight: 'bold', textAlign: 'center', marginTop: 6, backgroundColor: '#001a1a', paddingVertical: 4 },
+  collapseBtn: { backgroundColor: '#002626', borderWidth: 1, borderColor: '#00ffff', paddingVertical: 8, marginTop: 8, alignItems: 'center' },
+  collapseBtnText: { color: '#00ffff', fontFamily: 'monospace', fontSize: 12, fontWeight: 'bold' },
+  collapseBtnDisabled: { borderColor: '#112222', backgroundColor: 'transparent', opacity: 0.2 },
+  sectionHeader: { color: '#00ffff', fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#002222', paddingBottom: 2 },
+  
+  // FIXED OMNIDIRECTIONAL FRAMES WITH WEB FIXES
+  canvasFrameContainer: {
+    backgroundColor: '#030606',
+    borderWidth: 1,
+    borderColor: '#002222',
+    height: 420, 
+    width: '100%',
+    overflow: 'hidden',
+  },
+  horizontalScrollContent: {
+    width: 600,
+    alignSelf: 'flex-start', // CRITICAL WEB FIX: Stops the web rendering engine from creating empty right space extensions
+  },
+  verticalScrollContent: {
+    height: 480,
+  },
+  mapCanvasScrollVertical: {
+    flex: 1,
+    width: '100%',
+  },
+  canvasPlane: { 
+    width: 600,  
+    height: 480, 
+    position: 'relative',
+    backgroundColor: '#020404',
+  },
+
+  // SKILL WEB NODE DEFINITIONS
+  neuronNode: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: '#011111', borderWidth: 1, borderColor: '#004444', padding: 6, justifyContent: 'center', alignItems: 'center', zIndex: 5 },
+  neuronLinearBought: { backgroundColor: '#002222', borderColor: '#00ffff' },
+  neuronActiveRepeatable: { borderColor: '#00cc88' },
+  neuronFocusedBorder: { borderColor: '#ffffff', borderWidth: 2, backgroundColor: '#002626' },
+  neuronName: { color: '#eee', fontSize: 9, fontFamily: 'monospace', fontWeight: 'bold', textAlign: 'center', lineHeight: 10 },
+  neuronMeta: { color: '#009988', fontSize: 8, fontFamily: 'monospace', marginTop: 3, fontWeight: 'bold' },
+
+  // CALCULATED VECTOR STRINGS
+  wireElement: { position: 'absolute', height: 1.5, transformOrigin: 'top left', zIndex: 1 },
+
+  // DYNAMIC CONSOLE READOUT SUB PANEL LAYOUTS
+  telemetryFooterBox: { backgroundColor: '#050707', borderWidth: 1, borderColor: '#112222', padding: 12, marginTop: 10, minHeight: 92, justifyContent: 'center' },
+  telemetryStandbyPrompt: { color: '#334444', fontFamily: 'monospace', fontSize: 10, textAlign: 'center', lineHeight: 14 },
+  telemetryNodeTitle: { color: '#fff', fontFamily: 'monospace', fontSize: 12, fontWeight: 'bold', borderBottomWidth: 1, borderBottomColor: '#002222', paddingBottom: 2, marginBottom: 4 },
+  telemetryNodeDesc: { color: '#8aa', fontFamily: 'monospace', fontSize: 11, lineHeight: 14 },
+  telemetryActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, borderTopWidth: 1, borderTopColor: '#0a1414', paddingTop: 6 },
+  telemetryCostText: { fontFamily: 'monospace', fontSize: 10, fontWeight: 'bold' },
+  telemetryDirectBuyBtn: { backgroundColor: '#002222', borderWidth: 1, borderColor: '#00ffff', paddingHorizontal: 8, paddingVertical: 4 },
+  telemetryDirectBuyBtnDisabled: { borderColor: '#221111', backgroundColor: 'transparent', opacity: 0.2 },
+  telemetryDirectBuyText: { color: '#fff', fontFamily: 'monospace', fontSize: 9, fontWeight: 'bold' },
+
+  subTabBar: { flexDirection: 'row', backgroundColor: '#050505', marginBottom: 12, borderWidth: 1, borderColor: '#111' },
+  subTabButton: { flex: 1, paddingVertical: 6, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  subTabActive: { backgroundColor: '#0c0c0c', borderBottomColor: '#00ffff' },
+  subTabText: { color: '#444', fontFamily: 'monospace', fontSize: 10, fontWeight: 'bold' },
+  subTabTextActive: { color: '#fff' },
+
+  voidRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1a001a' },
+  rowDetails: { color: '#888', fontSize: 11, fontFamily: 'monospace', marginTop: 1 },
+  voidBuyBtn: { borderWidth: 1, borderColor: '#ff00ff', paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#1a001a' }
+});
