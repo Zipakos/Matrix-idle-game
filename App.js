@@ -2,333 +2,45 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// STORAGE KEYS
+// IMPORT STATICS AND EXTERNALIZED DATA SCHEMAS
+import { UPGRADE_TREE, PRESTIGE_TREE, VOID_CORE_TREE, PRESTIGE_THRESHOLD } from './gameData';
+import PrestigeTab from './PrestigeTab';
+
+// EXPANDED REGISTRATION STORAGE PROFILE MOUNT FLAGGING KEY NODES
 const SAVE_KEY_POINTS = '@idle_game_points';
 const SAVE_KEY_UPGRADES = '@idle_game_upgrades';
 const SAVE_KEY_TIME = '@idle_game_last_time';
-
-// 1. SYSTEM DATA STRUCTURE
-const UPGRADE_TREE = {
-  up2: { id: 'up2', type: 'repeatable', name: 'Auto-Matrix I', baseCost: 15, scale: 1.15, baseValue: 1, desc: (localMult) => `Adds continuous generation channels (+${(1 * localMult).toFixed(1)} pt/sec per level).`, requires: [] },
-  up3: { id: 'up3', type: 'repeatable', name: 'Sub-Routine A', baseCost: 75, scale: 1.2, baseValue: 5, desc: (localMult) => `Deploys localized monitoring script units (+${(5 * localMult).toFixed(1)} pt/sec per level).`, requires: ['up2'] },
-  up4: { id: 'up4', type: 'linear', name: 'Clock Overclock', cost: 250, desc: () => 'Speeds up Auto-Matrix I streams by 100% (2x to Auto-Matrix I).', requires: ['up2'], multPPS: 2, target: 'up2' },
-  up5: { id: 'up5', type: 'linear', name: 'Sub-Routine Sync', cost: 500, desc: () => 'Optimizes Sub-Routine A clusters (2x to Sub-Routine A).', requires: ['up3'], multPPS: 2, target: 'up3' },
-  up6: { id: 'up6', type: 'linear', name: 'Core Pipeline Intersect', cost: 1400, desc: () => 'Blends data pipelines together (1.5x Global Multiplier).', requires: ['up4', 'up5'], multPPS: 1.5, target: 'global' },
-  up7: { id: 'up7', type: 'repeatable', name: 'Auto-Matrix II', baseCost: 3500, scale: 1.25, baseValue: 20, desc: (localMult) => `Unlocks advanced generation pipelines (+${(20 * localMult).toFixed(1)} pt/sec per level).`, requires: ['up4'] },
-  up8: { id: 'up8', type: 'linear', name: 'Sub-space Resonator', cost: 14000, desc: () => 'All Auto-Matrix II production is multiplied by 2.5x.', requires: ['up7'], multPPS: 2.5, target: 'up7' },
-  up9: { id: 'up9', type: 'linear', name: 'Data Compression Patch', cost: 28000, desc: () => 'Compresses Sub-Routine A packet delivery structures (4x to Sub-Routine A).', requires: ['up6'], multPPS: 4, target: 'up3' },
-  up10: { id: 'up10', type: 'repeatable', name: 'Data Condenser', baseCost: 65000, scale: 1.3, baseValue: 150, desc: (localMult) => `Compacts local signals. Flat passive generation (+${(150 * localMult).toFixed(1)} pt/sec per level).`, requires: ['up8'] },
-  up11: { id: 'up11', type: 'linear', name: 'Bandwidth Bridge', cost: 160000, desc: () => 'Broadens pipeline capacity thresholds (2x Global Multiplier).', requires: ['up9', 'up10'], multPPS: 2, target: 'global' },
-  up12: { id: 'up12', type: 'repeatable', name: 'Auto-Matrix III', baseCost: 450000, scale: 1.35, baseValue: 1200, desc: (localMult) => `Industrial generation grid array (+${(1200 * localMult).toFixed(1)} pt/sec per level).`, requires: ['up10'] },
-  up13: { id: 'up13', type: 'linear', name: 'Condenser Overheat Bypass', cost: 1200000, desc: () => 'Siphons heat models away from Condensers (3x to Data Condenser).', requires: ['up11'], multPPS: 3, target: 'up10' },
-  up14: { id: 'up14', type: 'linear', name: 'Quantum Matrix Link', cost: 3800000, desc: () => 'Triples the efficiency of all basic Auto-Matrix systems (3x to Matrix I, II, III).', requires: ['up12'], multPPS: 3, target: 'all_matrices' },
-  up15: { id: 'up15', type: 'linear', name: 'Entangled Nodes', cost: 9500000, desc: () => 'Total global passive generation scales up by 3x (3x Global Multiplier).', requires: ['up13', 'up14'], multPPS: 3, target: 'global' },
-  up16: { id: 'up16', type: 'repeatable', name: 'Macro Harvester', baseCost: 28000000, scale: 1.4, baseValue: 12500, desc: (localMult) => `Colossal automated background matrix network (+${(12500 * localMult).toFixed(1)} pt/sec per level).`, requires: ['up14'] },
-  up17: { id: 'up17', type: 'linear', name: 'Macro Optimization Protocol', cost: 80000000, desc: () => 'Polishes Macro Harvester scraping algorithms (3x to Macro Harvester).', requires: ['up15'], multPPS: 3, target: 'up16' },
-  up18: { id: 'up18', type: 'linear', name: 'Singularity Loom', cost: 300000000, desc: () => 'Folds math operations. Multiplies total overall production by 5x.', requires: ['up16', 'up17'], multPPS: 5, target: 'global' },
-  up19: { id: 'up19', type: 'repeatable', name: 'Antimatter Conduit', baseCost: 1200000000, scale: 1.45, baseValue: 150000, desc: (localMult) => `Deep-void extraction systems (+${(150000 * localMult).toFixed(1)} pt/sec per level).`, requires: ['up18'] },
-  up20: { id: 'up20', type: 'linear', name: 'Universal Transcendence', cost: 15000000000, desc: () => 'The final operations matrix. Reaches peak execution potential (100x Global Multiplier).', requires: ['up19'], multPPS: 100, target: 'global' }
-};
+const SAVE_KEY_SHARDS = '@idle_game_shards';
+const SAVE_KEY_PRESTIGE_UPGRADES = '@idle_game_prestige_upgrades';
+const SAVE_KEY_HAS_PRESTIGED = '@idle_game_has_prestiged';
+const SAVE_KEY_VOID_UPGRADES = '@idle_game_void_upgrades'; // Extended Key
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState('console'); 
   const [points, setPoints] = useState(0);
   const [purchasedUps, setPurchasedUps] = useState({});
+  const [shards, setShards] = useState(0);
+  const [prestigeUps, setPrestigeUps] = useState({});
+  const [voidPurchased, setVoidPurchased] = useState({}); // New State Array Profile
+  const [hasPrestiged, setHasPrestiged] = useState(false); 
   const [currentPPS, setCurrentPPS] = useState(0);
+  const [globalMultiplier, setGlobalMultiplier] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Offline Telematic Capture States
+  // HEAT THERMAL LOOP REACT SYSTEM HOOK REGISTERS
+  const [systemHeat, setSystemHeat] = useState(0);
+  const [heatEfficiency, setHeatEfficiency] = useState(100);
+
+  // Offline Capture States
   const [offlineModalVisible, setOfflineModalVisible] = useState(false);
   const [offlineReport, setOfflineReport] = useState({ duration: 0, earnings: 0 });
 
-  // Dedicated flat references to protect numerical variables across high-speed render loops
   const stateRef = useRef({
     points: 0,
     purchased: {}, 
+    shards: 0,
+    prestigeUps: {},
+    voidPurchased: {}, // Track inside mutable ref layer
+    hasPrestiged: false,
     lastTick: Date.now(),
   });
-
-  // 2. STATE COMPILER MECHANICS
-  const getLocalBuildingMultiplier = (id, activePurchases) => {
-    let multiplier = 1;
-    Object.keys(activePurchases).forEach((modId) => {
-      const upgrade = UPGRADE_TREE[modId];
-      if (!upgrade || !upgrade.multPPS) return;
-      const level = activePurchases[modId];
-      const upgradePower = Math.pow(upgrade.multPPS, level);
-
-      if (upgrade.target === 'all_matrices' && ['up2', 'up7', 'up12'].includes(id)) {
-        multiplier *= upgradePower;
-      } else if (upgrade.target === id) {
-        multiplier *= upgradePower;
-      }
-    });
-    return multiplier;
-  };
-
-  const calculateCurrentStats = (activePurchases) => {
-    let baseSum = 0;
-    let globalPPSMultiplier = 1;
-
-    Object.keys(UPGRADE_TREE).forEach((id) => {
-      const item = UPGRADE_TREE[id];
-      if (item.type === 'repeatable') {
-        const count = activePurchases[id] || 0;
-        const localMult = getLocalBuildingMultiplier(id, activePurchases);
-        baseSum += count * (item.baseValue * localMult);
-      }
-      if (item.type === 'linear' && item.target === 'global' && activePurchases[id]) {
-        globalPPSMultiplier *= item.multPPS;
-      }
-    });
-
-    return baseSum * globalPPSMultiplier;
-  };
-
-  // 3. PERSISTENT SYSTEM CHECKPOINTS
-  const saveGameToDisk = async () => {
-    try {
-      const nowString = Date.now().toString();
-      await AsyncStorage.multiSet([
-        [SAVE_KEY_POINTS, stateRef.current.points.toString()],
-        [SAVE_KEY_UPGRADES, JSON.stringify(stateRef.current.purchased)],
-        [SAVE_KEY_TIME, nowString]
-      ]);
-    } catch (e) {
-      console.warn("Checkpoint write failure", e);
-    }
-  };
-
-  useEffect(() => {
-    const initializeAndLoad = async () => {
-      try {
-        const savedData = await AsyncStorage.multiGet([SAVE_KEY_POINTS, SAVE_KEY_UPGRADES, SAVE_KEY_TIME]);
-        const savedPoints = savedData[0][1] ? parseFloat(savedData[0][1]) : 0;
-        const savedUpgrades = savedData[1][1] ? JSON.parse(savedData[1][1]) : {};
-        const savedTimestamp = savedData[2][1] ? parseInt(savedData[2][1], 10) : null;
-
-        stateRef.current.points = savedPoints;
-        stateRef.current.purchased = savedUpgrades;
-        
-        setPoints(savedPoints);
-        setPurchasedUps(savedUpgrades);
-
-        const currentProductionValue = calculateCurrentStats(savedUpgrades);
-        setCurrentPPS(currentProductionValue);
-
-        // Process Offline Calculations
-        if (savedTimestamp && currentProductionValue > 0) {
-          const now = Date.now();
-          
-          if (now < savedTimestamp) {
-            await AsyncStorage.setItem(SAVE_KEY_TIME, now.toString());
-          } else {
-            const elapsedSeconds = (now - savedTimestamp) / 1000;
-            
-            if (elapsedSeconds > 10) { 
-              const offlineEarnings = elapsedSeconds * currentProductionValue;
-              
-              stateRef.current.points += offlineEarnings;
-              setPoints(stateRef.current.points);
-              
-              setOfflineReport({ duration: elapsedSeconds, earnings: offlineEarnings });
-              setOfflineModalVisible(true);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Critical storage profile parsing error", err);
-      } finally {
-        stateRef.current.lastTick = Date.now();
-        setIsLoaded(true);
-      }
-    };
-
-    initializeAndLoad();
-  }, []);
-
-  // 4. HEARTBEAT ACTIVE INTERVAL LOOP
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    let saveCounter = 0;
-    const loop = setInterval(() => {
-      const now = Date.now();
-      const delta = (now - stateRef.current.lastTick) / 1000;
-      stateRef.current.lastTick = now;
-
-      const pps = calculateCurrentStats(stateRef.current.purchased);
-      setCurrentPPS(pps);
-
-      if (pps > 0) {
-        stateRef.current.points += pps * delta;
-        setPoints(stateRef.current.points);
-      }
-
-      // Increment auto-save buffer (~50 ticks of 100ms evaluates to 5s check points)
-      saveCounter++;
-      if (saveCounter >= 50) {
-        saveCounter = 0;
-        saveGameToDisk();
-      }
-    }, 100);
-
-    return () => clearInterval(loop);
-  }, [isLoaded]);
-
-  // 5. INTERACTIVE UPGRADE MUTATOR ACTIONS
-  const getUpgradeCost = (id) => {
-    const node = UPGRADE_TREE[id];
-    if (node.type === 'linear') return node.cost;
-    const currentLevel = stateRef.current.purchased[id] || 0;
-    if (id === 'up2' && currentLevel === 0) return 0;
-    return Math.floor(node.baseCost * Math.pow(node.scale, currentLevel));
-  };
-
-  const buyUpgrade = (id) => {
-    const node = UPGRADE_TREE[id];
-    const cost = getUpgradeCost(id);
-
-    if (stateRef.current.points >= cost) {
-      if (node.type === 'linear' && stateRef.current.purchased[id]) return;
-
-      stateRef.current.points -= cost;
-      const currentLevel = stateRef.current.purchased[id] || 0;
-      stateRef.current.purchased[id] = currentLevel + 1;
-
-      setPurchasedUps({ ...stateRef.current.purchased });
-      setPoints(stateRef.current.points);
-      setCurrentPPS(calculateCurrentStats(stateRef.current.purchased));
-      
-      saveGameToDisk();
-    }
-  };
-
-  const isPrereqMet = (upgrade) => {
-    if (upgrade.requires.length === 0) return true;
-    return upgrade.requires.every(reqId => (purchasedUps[reqId] || 0) > 0);
-  };
-
-  const formatOfflineTime = (totalSeconds) => {
-    const hrs = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = Math.floor(totalSeconds % 60);
-    return `${hrs}h ${mins}m ${secs}s`;
-  };
-
-  if (!isLoaded) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={styles.counter}>RECOVERING COLD TELEMETRY MODULES...</Text>
-      </View>
-    );
-  }
-
-  // 6. VISUAL RENDERING SCHEMA
-  return (
-    <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.counter}>{Math.floor(points).toLocaleString()} points</Text>
-        <Text style={styles.subCounter}>{currentPPS.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})} points/sec</Text>
-
-        <Text style={styles.sectionHeader}>System Operations Console</Text>
-        
-        {Object.keys(UPGRADE_TREE).map((id) => {
-          const item = UPGRADE_TREE[id];
-          const cost = getUpgradeCost(id);
-          const ownedLevel = purchasedUps[id] || 0;
-          
-          if (!isPrereqMet(item)) return null;
-          if (item.type === 'linear' && ownedLevel > 0) return null;
-
-          const currentLocalMult = getLocalBuildingMultiplier(id, purchasedUps);
-          const currentTotalBuildingYield = ownedLevel * (item.baseValue * currentLocalMult);
-
-          return (
-            <View key={id} style={styles.row}>
-              <View style={styles.textContainer}>
-                <Text style={styles.rowName}>
-                  {item.name} {item.type === 'repeatable' && `[Lvl ${ownedLevel}]`}
-                </Text>
-                
-                <Text style={styles.rowDetails}>
-                  {item.desc(currentLocalMult)}
-                </Text>
-
-                {/* TELEMETRY SLAT: Streamlined Contribution View */}
-                {item.type === 'repeatable' && ownedLevel > 0 && (
-                  <Text style={styles.telemetryText}>
-                    Current Yield: {currentTotalBuildingYield.toLocaleString(undefined, {maximumFractionDigits: 1})} pt/s total
-                  </Text>
-                )}
-
-                <Text style={styles.costText}>Cost: {cost === 0 ? 'FREE' : `${cost.toLocaleString()} pts`}</Text>
-              </View>
-              
-              <TouchableOpacity 
-                style={[styles.buyBtn, points < cost && styles.btnDisabled]} 
-                onPress={() => buyUpgrade(id)}
-                disabled={points < cost}
-              >
-                <Text style={styles.buyBtnText}>
-                  {item.type === 'repeatable' && ownedLevel > 0 ? 'Upgrade' : 'Initialize'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })}
-      </ScrollView>
-
-      {/* DETACHED OFFLINE RECOVERY DIALOGUE SCREEN */}
-      <Modal animationType="fade" transparent={true} visible={offlineModalVisible}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalHeader}>SYSTEM RECOVERY REPORT</Text>
-            <View style={styles.modalDivider} />
-            
-            <Text style={styles.modalLabel}>DOWNTIME DURATION:</Text>
-            <Text style={styles.modalValue}>{formatOfflineTime(offlineReport.duration)}</Text>
-            
-            <Text style={styles.modalLabel}>DATA CONVERGED PASSIVELY:</Text>
-            <Text style={[styles.modalValue, { color: '#00ff00' }]}>
-              +{Math.floor(offlineReport.earnings).toLocaleString()} PTS
-            </Text>
-
-            <TouchableOpacity 
-              style={styles.modalButton} 
-              onPress={() => setOfflineModalVisible(false)}
-            >
-              <Text style={styles.modalButtonText}>SYNC PIPELINES</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
-// 7. COMPACT MONOSPACE TEXTURES
-const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#050505', padding: 24, paddingTop: 60 },
-  counter: { color: '#00ff00', fontSize: 32, fontFamily: 'monospace', fontWeight: 'bold', textAlign: 'center' },
-  subCounter: { color: '#006600', fontSize: 16, fontFamily: 'monospace', textAlign: 'center', marginBottom: 30 },
-  sectionHeader: { color: '#444', fontSize: 12, fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#222', paddingBottom: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#111' },
-  textContainer: { flex: 1, paddingRight: 16 },
-  rowName: { color: '#fff', fontSize: 15, fontFamily: 'monospace', fontWeight: 'bold' },
-  rowDetails: { color: '#aaa', fontSize: 12, fontFamily: 'monospace', marginTop: 4 },
-  telemetryText: { color: '#007700', fontSize: 11, fontFamily: 'monospace', marginTop: 4, fontStyle: 'italic' },
-  costText: { color: '#00ff00', fontSize: 12, fontFamily: 'monospace', marginTop: 6 },
-  buyBtn: { borderWidth: 1, borderColor: '#00ff00', paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#001100' },
-  buyBtnText: { color: '#00ff00', fontFamily: 'monospace', fontSize: 14, fontWeight: 'bold' },
-  btnDisabled: { borderColor: '#222', backgroundColor: 'transparent', opacity: 0.2 },
-  
-  // Modal Style Formatting
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalContent: { backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#006600', padding: 24, width: '100%', maxWidth: 400 },
-  modalHeader: { color: '#00ff00', fontSize: 18, fontFamily: 'monospace', fontWeight: 'bold', textAlign: 'center' },
-  modalDivider: { height: 1, backgroundColor: '#003300', marginVertical: 16 },
-  modalLabel: { color: '#666', fontSize: 11, fontFamily: 'monospace', marginTop: 12 },
-  modalValue: { color: '#fff', fontSize: 16, fontFamily: 'monospace', fontWeight: 'bold', marginTop: 2 },
-  modalButton: { borderWidth: 1, borderColor: '#00ff00', padding: 12, alignItems: 'center', marginTop: 24, backgroundColor: '#001100' },
-  modalButtonText: { color: '#00ff00', fontFamily: 'monospace', fontWeight: 'bold', fontSize: 14 }
-});
