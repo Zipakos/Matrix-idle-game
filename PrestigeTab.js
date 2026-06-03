@@ -370,4 +370,15 @@ const styles = StyleSheet.create({
   telemetryCostText: { fontFamily: 'monospace', fontSize: 10, fontWeight: 'bold' },
   telemetryDirectBuyBtn: { backgroundColor: '#002222', borderWidth: 1, borderColor: '#00ffff', paddingHorizontal: 8, paddingVertical: 4 },
   telemetryDirectBuyBtnDisabled: { borderColor: '#221111', backgroundColor: 'transparent', opacity: 0.2 },
-  telemetryDirectBuyText:
+  telemetryDirectBuyText: { color: '#fff', fontFamily: 'monospace', fontSize: 9, fontWeight: 'bold' },
+
+  subTabBar: { flexDirection: 'row', backgroundColor: '#050505', marginBottom: 12, borderWidth: 1, borderColor: '#111' },
+  subTabButton: { flex: 1, paddingVertical: 6, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  subTabActive: { backgroundColor: '#0c0c0c', borderBottomColor: '#00ffff' },
+  subTabText: { color: '#444', fontFamily: 'monospace', fontSize: 10, fontWeight: 'bold' },
+  subTabTextActive: { color: '#fff' },
+
+  voidRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1a001a' },
+  rowDetails: { color: '#888', fontSize: 11, fontFamily: 'monospace', marginTop: 1 },
+  voidBuyBtn: { borderWidth: 1, borderColor: '#ff00ff', paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#1a001a' }
+});
